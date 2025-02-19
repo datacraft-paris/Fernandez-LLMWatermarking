@@ -91,7 +91,7 @@ def get_args_parser():
 
     # model parameters
     parser.add_argument('--model_name', type=str, required=True, 
-                       help='Name of the model to use. Choose from: llama-3.2-1b, smollm2-135m')
+                       help='Name of the model to use. Choose from: smollm2-360m, smollm2-135m')
 
     # prompts parameters
     parser.add_argument('--prompt_path', type=str, default=None,
