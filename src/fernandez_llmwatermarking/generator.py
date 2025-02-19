@@ -138,17 +138,50 @@ class OpenaiGenerator(WmGenerator):
         top_p: float = 0.95, # top p for sampling
     ):
         """
-        This function generates the next token by applying temperature-scaled sampling combined with top-p (nucleus) filtering.
+        Generates the next token based on the provided logits by applying top-p (nucleus) sampling 
+        with an adjustable temperature. The process is detailed line by line below.
 
-        - If the temperature is above zero, it scales the logits and converts them to probabilities using softmax.
-        - The probabilities are then sorted in descending order, and tokens whose cumulative probability exceeds the top_p 
-        threshold are zeroed out, with the remaining probabilities renormalized.
-        - The random number generator is seeded deterministically based on the provided n-gram tokens (via `aux['ngram_tokens']`) 
-        to ensure reproducibility.
-        - If the temperature is zero or less, the function bypasses the sampling process and directly selects the token with 
-        the highest logit (greedy selection).
+        1. Extracts the n-gram tokens sequence from the auxiliary dictionary `aux`.
 
-        The selected token is reshaped and returned as a single integer token index.
+        2. If the temperature is greater than 0, a probabilistic (random) sampling is applied.
+        - Otherwise, the token with the highest logit is selected deterministically.
+
+        3. Applies the softmax function to the logits scaled by the temperature to obtain a probability distribution.
+
+        4. Sorts the probabilities in descending order.
+        - `probs_sort` contains the sorted probabilities.
+        - `probs_idx` contains the indices corresponding to the tokens in sorted order.
+
+        5. Computes the cumulative sum along the last dimension of the sorted probabilities.
+
+        6. Generates a boolean mask identifying tokens where the cumulative sum (excluding the token's own probability) exceeds the top-p threshold.
+
+        7. Sets the probabilities that do not satisfy the top-p criterion to zero.
+
+        8. Divides the filtered probabilities by their sum to ensure a normalized distribution.
+
+        9. Computes a seed value based on the initial seed and the n-gram tokens for reproducibility.
+
+        10. Sets the seed for the random number generator `self.rng`.
+
+        11. Generates a tensor of random numbers between 0 and 1 for each token in the vocabulary.
+
+        12. Ensures that the tensor `rs` is on the same device (CPU/GPU) as `probs_sort`.
+
+        13. Reorders the random values to correspond with the ordering of tokens in `probs_sort`.
+
+        14. Raises the random numbers to the power of the inverse of the sorted probabilities.
+         - This transformation prepares the token selection process by emphasizing the relative differences.
+
+        15. Identifies the index of the token with the highest value in the transformed `probs_sort`.
+
+        16. Retrieves the original index of the selected token from the sorted indices.
+
+        17. If the temperature is 0, directly selects the token with the highest logit without random sampling.
+
+        18. Reshapes the tensor to extract a single value representing the next token.
+
+        19. Returns the next token determined by either top-p sampling or deterministic selection.
 
         Parameters
         ----------
@@ -170,7 +203,6 @@ class OpenaiGenerator(WmGenerator):
         int
             The index of the sampled next token.
         """
-        ngram_tokens = aux['ngram_tokens']
         return ...
 
 #region > to be completed
@@ -205,14 +237,38 @@ class MarylandGenerator(WmGenerator):
         top_p: float = 0.95, # top p for sampling
     ):
         """
-        Generate the next token using temperature-scaled sampling combined with top-p (nucleus) filtering.
-    
-        This function adjusts the raw logits with a deterministic bias based on n-gram tokens, scales the logits
-        according to the specified temperature, and then converts them into probabilities. Tokens are filtered using 
-        a cumulative probability threshold (top_p) to restrict the sampling space, ensuring that only the most 
-        probable tokens are considered. The random number generator is seeded deterministically based on the provided 
-        n-gram tokens, ensuring reproducibility of the sampling process. If the temperature is zero or below, the function 
-        bypasses the stochastic sampling and directly selects the token with the highest logit value (greedy selection).
+        1. Extracts the n-gram tokens from the auxiliary dictionary `aux`. 
+
+        2. Applies a custom logits processing function (possibly to modify or mask logits) based on the n-gram tokens.
+
+        3. If temperature is greater than 0, use probabilistic sampling.
+
+        4. Applies the softmax function to the scaled logits (scaled by the temperature) to obtain a probability distribution
+        over the vocabulary.
+
+        5. Sorts the probabilities from highest to lowest.
+        - `probs_sort` contains the sorted probabilities.
+        - `probs_idx` contains the indices corresponding to the tokens in the sorted order.
+
+        6. Calculates the cumulative sum of the sorted probabilities along the last dimension.
+
+        7. Generates a boolean mask that identifies tokens where the cumulative sum, excluding the token's own probability,
+        exceeds the top-p threshold.
+
+        8. Sets the probabilities for tokens outside the top-p threshold to zero.
+
+        9. Divides the filtered probabilities by their sum to ensure that the remaining probabilities form a valid distribution.
+
+        10. Uses multinomial sampling to draw one sample from the renormalized distribution. The result corresponds to an index
+        in the sorted probability tensor.
+
+        11. Uses the sorted indices (`probs_idx`) to retrieve the original vocabulary index corresponding to the sampled token.
+
+        12. If the temperature is 0, no sampling is performed; the token with the highest logit is selected directly.
+
+        13. Reshapes the tensor to obtain a single scalar token value.
+
+        14. Returns the next token, either sampled probabilistically (if temperature > 0) or chosen deterministically.
 
         Parameters
         ----------
@@ -240,14 +296,30 @@ class MarylandGenerator(WmGenerator):
         return ...
 
     def logits_processor(self, logits, ngram_tokens):
-        """"
-        Adjust logits by applying a deterministic bias based on a randomly generated "greenlist" of tokens.
-    
-        This function clones the provided logits and applies a bias to a subset of the vocabulary, known as the greenlist.
-        The greenlist is determined by generating a random permutation of vocabulary indices using a random seed that is 
-        computed from the provided n-gram tokens and the instance's seed. This approach ensures that the bias is reproducible 
-        for a given set of n-gram tokens. The bias, determined by an instance parameter, is added to the logits of the first 
-        batch element, increasing the likelihood of selecting these favored tokens during sampling.
+        
+        """
+        Processes the logits by applying a bias to a subset of vocabulary words (the greenlist),
+        effectively boosting their likelihood of being selected. This biasing is seeded based on the
+        provided n-gram tokens to ensure reproducibility.
+
+        1. Creates a copy of the input logits tensor to avoid modifying the original data.
+
+        2. Computes a seed value using an initial seed (self.seed) and the provided n-gram tokens.
+
+        3. Sets the seed for the random number generator (self.rng) to the computed seed.
+
+        4. Generates a random permutation of indices for the entire vocabulary.
+
+        5. Chooses the first portion of the randomly permuted vocabulary based on the fraction (self.gamma).
+        The greenlist contains int(self.gamma * self.vocab_size) tokens that will receive a bias.
+
+        6. Initializes a tensor of zeros with the same size as the vocabulary.
+
+        7. Sets the bias value for the tokens in the greenlist to self.delta.
+
+        8. Adds the bias tensor to the logits of the first (and only) sample.
+
+        9.Returns the updated logits tensor, which now has a bias applied to the greenlist words.
 
         Parameters
         ----------
