@@ -1,0 +1,7 @@
+.venv 
+
+__pycache__
+uv.lock
+
+static/hf_cache/*
+static/output/*
