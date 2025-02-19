@@ -52,6 +52,7 @@ First, choose the branch you want to challenge:
 There are two files you have to complete:
 1. `generator.py`: include watermarking in the generation process using two methods, OpenAI and Maryland
 Head to the `sample_next` methods under the `MarylandGenerator` and `OpenaiGenerator` classes and fill the code.
+The `logits_preprocessor` method has to be filled for the `MarylandGenerator` too.
 
 2. `detector.py`: detect your own watermark post-generation using the `OpenaiDetector` and `MarylandDetector`, in theses classes, you can fill the `score_tok` methods to get it working.
 
