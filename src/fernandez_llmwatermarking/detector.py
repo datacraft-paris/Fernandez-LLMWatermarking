@@ -167,8 +167,39 @@ class MarylandDetector(WmDetector):
         self.delta = delta
     
     def score_tok(self, ngram_tokens, token_id):
-        """ 
-        score_t = 1 if token_id in greenlist else 0
+        """
+        Computes a score for a given token based on whether it is part of a dynamically generated greenlist.
+        The greenlist is determined by a seeded random permutation of vocabulary indices.
+
+        1. Computes a seed value using the initial seed (self.seed) and the provided n-gram tokens.
+
+        2. Sets the seed for the random number generator (self.rng) to the computed seed.
+
+        3. Creates a tensor of zeros with size equal to the vocabulary.
+
+        4. Generates a random permutation of all vocabulary indices using the seeded generator.
+
+        5. Selects the first int(self.gamma * self.vocab_size) tokens from the random permutation.
+
+        6. Sets the score for each token in the greenlist to 1.
+
+        7. Retrieves and returns the score for the token identified by token_id.
+
+        Parameters
+        ----------
+        ngram_tokens : torch.Tensor
+            A tensor representing n-gram tokens. These tokens are used to compute a deterministic seed for generating
+            the random permutation of the vocabulary.
+        token_id : int
+            The index of the token to score. The function returns 1 if this token is included in the greenlist,
+            otherwise it returns 0.
+
+        Returns
+        -------
+        torch.Tensor or int
+            A scalar (either a PyTorch tensor or an integer) representing the score for the specified token:
+            1 if the token is in the greenlist, 0 otherwise.
+
         """
         seed = get_seed_rng(self.seed, ngram_tokens)
         self.rng.manual_seed(seed)
@@ -222,8 +253,32 @@ class OpenaiDetector(WmDetector):
         super().__init__(tokenizer, ngram, seed, **kwargs)
     
     def score_tok(self, ngram_tokens, token_id):
-        """ 
-        score_t = -log(1 - rt[token_id]])
+        """
+        Compute a stochastic score for a given token using a negative log transform on a random value.
+
+        This function calculates a score for a token identified by `token_id` based on a deterministic random number
+        generated from a seed derived from the provided n-gram tokens and the instance's seed. The process involves:
+
+        1. Computing a seed using `get_seed_rng(self.seed, ngram_tokens)`.
+        2. Seeding the instance's random number generator (`self.rng`) with the computed seed to ensure reproducibility.
+        3. Generating a tensor of random numbers (`rs`) uniformly distributed in the interval [0, 1) for each token in the vocabulary.
+        4. Applying the transformation score = -log(1 - r) to each random value, which maps the uniform distribution into a
+        distribution where lower random values correspond to lower scores and vice versa.
+        5. Returning the score corresponding to the specified `token_id`.
+
+        Parameters
+        ----------
+        ngram_tokens : torch.Tensor
+            A tensor representing n-gram tokens used to compute a deterministic seed. The exact shape and content depend on the
+            specific application and model design.
+        token_id : int
+            The index of the token for which the score is to be computed.
+
+        Returns
+        -------
+        torch.Tensor or float
+            A scalar (either a PyTorch tensor or a float) representing the computed score for the specified token, as determined
+            by the transformation -log(1 - r[token_id]).
         """
         seed = get_seed_rng(self.seed, ngram_tokens)
         self.rng.manual_seed(seed)
