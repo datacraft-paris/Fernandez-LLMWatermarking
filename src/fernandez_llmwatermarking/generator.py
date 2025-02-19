@@ -6,6 +6,7 @@ from fernandez_llmwatermarking.hashing import get_seed_rng
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+#region WmGenerator 
 class WmGenerator():
     def __init__(self, 
         model: AutoModelForCausalLM, 
@@ -112,7 +113,12 @@ class WmGenerator():
         next_token = next_token.reshape(-1)[0]  # Get the single token value
         return next_token
 
+#region > to be completed
 
+
+
+
+#region OpenaiGenerator 
 class OpenaiGenerator(WmGenerator):
     """
     Generate text using LLaMA and Aaronson's watermarking method.
@@ -131,19 +137,54 @@ class OpenaiGenerator(WmGenerator):
         temperature: float = 0.8, # temperature for sampling
         top_p: float = 0.95, # top p for sampling
     ):
+
+        """
+        This function generates the next token by applying temperature-scaled sampling combined with top-p (nucleus) filtering.
+
+        - If the temperature is above zero, it scales the logits and converts them to probabilities using softmax.
+        - The probabilities are then sorted in descending order, and tokens whose cumulative probability exceeds the top_p 
+        threshold are zeroed out, with the remaining probabilities renormalized.
+        - The random number generator is seeded deterministically based on the provided n-gram tokens (via `aux['ngram_tokens']`) 
+        to ensure reproducibility.
+        - If the temperature is zero or less, the function bypasses the sampling process and directly selects the token with 
+        the highest logit (greedy selection).
+
+        The selected token is reshaped and returned as a single integer token index.
+
+        Parameters
+        ----------
+        logits : torch.FloatTensor
+            A tensor of shape (1, vocab_size) containing the logits for the last token in the sequence.
+        aux : dict
+            A dictionary containing auxiliary data needed for sampling. It must include:
+                - 'ngram_tokens': Tokens used to seed the random number generator for deterministic sampling.
+        temperature : float, optional (default=0.8)
+            Controls the randomness of the sampling:
+                - A higher temperature (>0) yields a more random (softer) probability distribution.
+                - If set to 0 or below, the function uses greedy sampling (argmax).
+        top_p : float, optional (default=0.95)
+            The cumulative probability threshold for nucleus (top-p) sampling. Only the top tokens with a
+            cumulative probability less than or equal to `top_p` are considered for sampling.
+
+        Returns
+        -------
+        int
+            The index of the sampled next token.
+        """
+        
         ngram_tokens = aux['ngram_tokens']
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
-            probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
+        if temperature > ...:
+            probs = ...
+            probs_sort, probs_idx = ...
+            probs_sum = ...
+            mask = ...
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
             # seed with hash of ngram tokens
-            seed = get_seed_rng(self.seed, ngram_tokens)
+            seed = ...
             self.rng.manual_seed(seed)
             # generate rs randomly between [0,1]
-            rs = torch.rand(self.vocab_size, generator=self.rng) # n
+            rs = ... # n
             rs = torch.Tensor(rs).to(probs_sort.device)
             rs = rs[probs_idx[0]] 
             # compute r^(1/p)
@@ -156,7 +197,12 @@ class OpenaiGenerator(WmGenerator):
         next_token = next_token.reshape(-1)[0]  # Get the single token value
         return next_token
 
+#region > to be completed
 
+
+
+
+#region MarylandGenerator 
 class MarylandGenerator(WmGenerator):
     """
     Generate text using LLaMA and Maryland's watemrarking method.
@@ -182,30 +228,86 @@ class MarylandGenerator(WmGenerator):
         temperature: float = 0.8, # temperature for sampling
         top_p: float = 0.95, # top p for sampling
     ):
+        """
+        Generate the next token using temperature-scaled sampling combined with top-p (nucleus) filtering.
+    
+        This function adjusts the raw logits with a deterministic bias based on n-gram tokens, scales the logits
+        according to the specified temperature, and then converts them into probabilities. Tokens are filtered using 
+        a cumulative probability threshold (top_p) to restrict the sampling space, ensuring that only the most 
+        probable tokens are considered. The random number generator is seeded deterministically based on the provided 
+        n-gram tokens, ensuring reproducibility of the sampling process. If the temperature is zero or below, the function 
+        bypasses the stochastic sampling and directly selects the token with the highest logit value (greedy selection).
+
+        Parameters
+        ----------
+        logits : torch.FloatTensor
+            A tensor of shape (1, vocab_size) containing the unnormalized log probabilities (logits) for the
+            last generated token.
+        aux : dict
+            A dictionary of auxiliary inputs. It must contain the key 'ngram_tokens' whose value is a tensor of
+            tokens (shape: (1, ngram)) that are used to seed and potentially modify the token selection process.
+        temperature : float, optional (default=0.8)
+            A positive float value used to scale the logits. A higher temperature increases randomness, whereas a
+            temperature of 0 (or a non-positive value) makes the selection deterministic by choosing the token with the
+            highest logit.
+        top_p : float, optional (default=0.95)
+            A float between 0 and 1 used for nucleus (top-p) sampling. After applying softmax to the scaled logits,
+            tokens are sorted by probability, and only the smallest set of tokens whose cumulative probability exceeds
+            top_p are considered for sampling. The probabilities of the other tokens are set to zero.
+             
+        Returns
+        -------
+        torch.Tensor
+            A single token (scalar tensor) representing the next token sampled according to the adjusted
+            probability distribution.
+        """
+
         ngram_tokens = aux['ngram_tokens']
-        logits = self.logits_processor(logits, ngram_tokens)
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
+        logits = ...
+        if temperature > ...:
+            probs = ...
             probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
-            probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
-            probs_sort[mask] = 0.0
+            probs_sum = ...
+            mask = ...
+            probs_sort[mask] = ...
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-            next_token = torch.multinomial(probs_sort, num_samples=1) # one hot of next token, ordered by original probs
-            next_token = torch.gather(probs_idx, -1, next_token) # one hot of next token, ordered by vocab
+            next_token = ... # one hot of next token, ordered by original probs
+            next_token = ... # one hot of next token, ordered by vocab
         else:
-            next_token = torch.argmax(logits, dim=-1)
-        next_token = next_token.reshape(-1)[0]  # Get the single token value
+            next_token = ...
+        next_token = ...  # Get the single token value
         return next_token
 
     def logits_processor(self, logits, ngram_tokens):
-        """Process logits to mask out words in greenlist."""
+        """"
+        Adjust logits by applying a deterministic bias based on a randomly generated "greenlist" of tokens.
+    
+        This function clones the provided logits and applies a bias to a subset of the vocabulary, known as the greenlist.
+        The greenlist is determined by generating a random permutation of vocabulary indices using a random seed that is 
+        computed from the provided n-gram tokens and the instance's seed. This approach ensures that the bias is reproducible 
+        for a given set of n-gram tokens. The bias, determined by an instance parameter, is added to the logits of the first 
+        batch element, increasing the likelihood of selecting these favored tokens during sampling.
+
+        Parameters
+        ----------
+        logits : torch.FloatTensor
+            A tensor of shape (1, vocab_size) containing the unnormalized log probabilities for tokens.
+        ngram_tokens : torch.Tensor
+            A tensor representing n-gram tokens which are used, along with the internal seed, to generate a deterministic
+            bias in the logits. The exact shape and content depend on the implementation specifics of the model.
+
+        Returns
+        -------
+        torch.FloatTensor
+            A tensor of the same shape as `logits` with an added bias on a subset of tokens (greenlist). The bias is added
+            only to the first (and assumed only) batch element (index 0).
+        """
         logits = logits.clone()
-        seed = get_seed_rng(self.seed, ngram_tokens)
+        seed = ...
         self.rng.manual_seed(seed)
-        vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
-        greenlist = vocab_permutation[:int(self.gamma * self.vocab_size)] # gamma * n
-        bias = torch.zeros(self.vocab_size).to(logits.device)
-        bias[greenlist] = self.delta
+        vocab_permutation = ...
+        greenlist = ... # gamma * n
+        bias = ...
+        bias[greenlist] = ...
         logits[0] += bias # add bias to greenlist words
         return logits
