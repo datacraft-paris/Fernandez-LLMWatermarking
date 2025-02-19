@@ -286,7 +286,44 @@ class MarylandGenerator(WmGenerator):
         return next_token
 
     def logits_processor(self, logits, ngram_tokens):
-        """Process logits to mask out words in greenlist."""
+        """
+        Processes the logits by applying a bias to a subset of vocabulary words (the greenlist),
+        effectively boosting their likelihood of being selected. This biasing is seeded based on the
+        provided n-gram tokens to ensure reproducibility.
+
+        1. Creates a copy of the input logits tensor to avoid modifying the original data.
+
+        2. Computes a seed value using an initial seed (self.seed) and the provided n-gram tokens.
+
+        3. Sets the seed for the random number generator (self.rng) to the computed seed.
+
+        4. Generates a random permutation of indices for the entire vocabulary.
+
+        5. Chooses the first portion of the randomly permuted vocabulary based on the fraction (self.gamma).
+        The greenlist contains int(self.gamma * self.vocab_size) tokens that will receive a bias.
+
+        6. Initializes a tensor of zeros with the same size as the vocabulary.
+
+        7. Sets the bias value for the tokens in the greenlist to self.delta.
+
+        8. Adds the bias tensor to the logits of the first (and only) sample.
+
+        9.Returns the updated logits tensor, which now has a bias applied to the greenlist words.
+
+        Parameters
+        ----------
+        logits : torch.FloatTensor
+            A tensor of shape (1, vocab_size) containing the unnormalized log probabilities for tokens.
+        ngram_tokens : torch.Tensor
+            A tensor representing n-gram tokens which are used, along with the internal seed, to generate a deterministic
+            bias in the logits. The exact shape and content depend on the implementation specifics of the model.
+
+        Returns
+        -------
+        torch.FloatTensor
+            A tensor of the same shape as `logits` with an added bias on a subset of tokens (greenlist). The bias is added
+            only to the first (and assumed only) batch element (index 0).
+        """
         logits = logits.clone()
         seed = get_seed_rng(self.seed, ngram_tokens)
         self.rng.manual_seed(seed)
