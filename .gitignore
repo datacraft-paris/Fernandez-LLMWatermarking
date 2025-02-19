@@ -1,0 +1,6 @@
+.venv 
+
+uv.lock
+
+static/hf_cache/*
+static/output/*
