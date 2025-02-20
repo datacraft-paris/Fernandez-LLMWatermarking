@@ -24,8 +24,9 @@ model_names = {
     'smollm2-135m': 'HuggingFaceTB/SmolLM2-135M-Instruct',
     'smollm2-360m': 'HuggingFaceTB/SmolLM2-360M-Instruct',   
 }
-
-CACHE_DIR = "/Users/datacraft/Fernandez-LLMWatermarking/static/hf_cache"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "../.."))
+CACHE_DIR = os.path.join(ROOT_DIR, 'static', 'hf_cache/')
 
 
 def load_prompts(json_path: str, prompt_type: str = "smollm", nsamples: int = None) -> list[dict]:
