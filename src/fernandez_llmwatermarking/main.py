@@ -12,6 +12,7 @@ import torch
 import numpy as np
 import pandas as pd
 import argparse
+import shutil
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -139,7 +140,8 @@ def get_args_parser():
 def main(args):
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
-
+    os.remove(os.path.join(args.output_dir, 'results.jsonl'))
+    os.remove(os.path.join(args.output_dir, 'scores.jsonl'))
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
