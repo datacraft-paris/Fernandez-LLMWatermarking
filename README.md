@@ -60,7 +60,7 @@ The `logits_preprocessor` method has to be filled for the `MarylandGenerator` to
 ## Running the watermarked generations
 
 ```bash
-uv run src/fernandez_llmwatermarking/main.py --model_name smollm2-360m --prompt "You can write your first prompt here" --temperature 0.8 --top_p 0.95 --max_gen_len 256 --method openai --method_detect same --seed 22 --ngram 1
+uv run src/fernandez_llmwatermarking/main.py --model_name smollm2-360m --prompt_path "Fernandez-LLMWatermarking/static/data /data%2Fprompts.json" --temperature 0.8 --top_p 0.95 --max_gen_len 256 --method openai --method_detect same --seed 22 --ngram 1
 ```
 
 ```bash
