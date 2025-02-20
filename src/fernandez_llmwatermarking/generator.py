@@ -112,7 +112,7 @@ class WmGenerator():
         next_token = next_token.reshape(-1)[0]  # Get the single token value
         return next_token
 
-
+#region to be completed 
 class OpenaiGenerator(WmGenerator):
     """
     Generate text using LLaMA and Aaronson's watermarking method.
@@ -177,11 +177,11 @@ class OpenaiGenerator(WmGenerator):
             The index of the sampled next token.
         """
         ngram_tokens = aux['ngram_tokens']
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
+        if temperature > ...:
+            probs = torch.softmax(... / ..., dim=-1)
             probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
             probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
+            mask = ... - ... > top_p
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
             # seed with hash of ngram tokens
@@ -192,15 +192,14 @@ class OpenaiGenerator(WmGenerator):
             rs = torch.Tensor(rs).to(probs_sort.device)
             rs = rs[probs_idx[0]] 
             # compute r^(1/p)
-            probs_sort[0] = torch.pow(rs, 1/probs_sort[0])
+            probs_sort[0] = ...
             # select argmax ( r^(1/p) )
-            next_token = torch.argmax(probs_sort, dim=-1, keepdim=True)
+            next_token = ...(probs_sort, dim=-1, keepdim=True)
             next_token = torch.gather(probs_idx, -1, next_token)
         else:
             next_token = torch.argmax(logits, dim=-1)
         next_token = next_token.reshape(-1)[0]  # Get the single token value
         return next_token
-
 
 class MarylandGenerator(WmGenerator):
     """
@@ -220,6 +219,7 @@ class MarylandGenerator(WmGenerator):
         self.gamma = gamma
         self.delta = delta
 
+#region to be completed 
     def sample_next(
         self,
         logits: torch.FloatTensor, # (1, vocab_size): logits for last token
@@ -271,20 +271,21 @@ class MarylandGenerator(WmGenerator):
         """
         ngram_tokens = aux['ngram_tokens']
         logits = self.logits_processor(logits, ngram_tokens)
-        if temperature > 0:
-            probs = torch.softmax(logits / temperature, dim=-1)
+        if temperature > ...:
+            probs = torch.softmax(... / ..., dim=-1)
             probs_sort, probs_idx = torch.sort(probs, dim=-1, descending=True)
             probs_sum = torch.cumsum(probs_sort, dim=-1)
-            mask = probs_sum - probs_sort > top_p
+            mask = ... - ... > top_p
             probs_sort[mask] = 0.0
             probs_sort.div_(probs_sort.sum(dim=-1, keepdim=True))
-            next_token = torch.multinomial(probs_sort, num_samples=1) # one hot of next token, ordered by original probs
+            next_token = ...(probs_sort, num_samples=1) # one hot of next token, ordered by original probs
             next_token = torch.gather(probs_idx, -1, next_token) # one hot of next token, ordered by vocab
         else:
             next_token = torch.argmax(logits, dim=-1)
         next_token = next_token.reshape(-1)[0]  # Get the single token value
         return next_token
-
+    
+#region to be completed 
     def logits_processor(self, logits, ngram_tokens):
         """
         Processes the logits by applying a bias to a subset of vocabulary words (the greenlist),
@@ -325,11 +326,11 @@ class MarylandGenerator(WmGenerator):
             only to the first (and assumed only) batch element (index 0).
         """
         logits = logits.clone()
-        seed = get_seed_rng(self.seed, ngram_tokens)
+        seed = ...(self.seed, ngram_tokens)
         self.rng.manual_seed(seed)
-        vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
-        greenlist = vocab_permutation[:int(self.gamma * self.vocab_size)] # gamma * n
+        vocab_permutation = ...(self.vocab_size, generator=self.rng)
+        greenlist = vocab_permutation[:int(... * ...)] # gamma * n
         bias = torch.zeros(self.vocab_size).to(logits.device)
         bias[greenlist] = self.delta
-        logits[0] += bias # add bias to greenlist words
+        logits[0] += ... # add bias to greenlist words
         return logits

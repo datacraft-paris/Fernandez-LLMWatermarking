@@ -152,7 +152,7 @@ class WmDetector():
         """ compute the p-value for a couple of score and number of tokens """
         raise NotImplementedError
 
-
+# region to be completed 
 class MarylandDetector(WmDetector):
 
     def __init__(self, 
@@ -201,13 +201,13 @@ class MarylandDetector(WmDetector):
             1 if the token is in the greenlist, 0 otherwise.
 
         """
-        seed = get_seed_rng(self.seed, ngram_tokens)
+        seed = ...
         self.rng.manual_seed(seed)
         scores = torch.zeros(self.vocab_size)
         vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
-        greenlist = vocab_permutation[:int(self.gamma * self.vocab_size)] # gamma * n toks in the greenlist
+        greenlist = vocab_permutation[:int(... * ...)] # gamma * n toks in the greenlist
         scores[greenlist] = 1 
-        return scores[token_id]
+        return ...
                 
     def get_pvalue(self, score: int, ntoks: int, eps: float):
         """ from cdf of a binomial distribution """
@@ -229,13 +229,7 @@ class MarylandDetectorZ(WmDetector):
     
     def score_tok(self, ngram_tokens, token_id):
         """ same as MarylandDetector but using zscore """
-        seed = get_seed_rng(self.seed, ngram_tokens)
-        self.rng.manual_seed(seed)
-        scores = torch.zeros(self.vocab_size)
-        vocab_permutation = torch.randperm(self.vocab_size, generator=self.rng)
-        greenlist = vocab_permutation[:int(self.gamma * self.vocab_size)] # gamma * n
-        scores[greenlist] = 1
-        return scores[token_id]
+        return ...
                 
     def get_pvalue(self, score: int, ntoks: int, eps: float):
         """ from cdf of a normal distribution """
@@ -252,6 +246,7 @@ class OpenaiDetector(WmDetector):
             **kwargs):
         super().__init__(tokenizer, ngram, seed, **kwargs)
     
+#region to be completed   
     def score_tok(self, ngram_tokens, token_id):
         """
         Compute a stochastic score for a given token using a negative log transform on a random value.
@@ -280,11 +275,11 @@ class OpenaiDetector(WmDetector):
             A scalar (either a PyTorch tensor or a float) representing the computed score for the specified token, as determined
             by the transformation -log(1 - r[token_id]).
         """
-        seed = get_seed_rng(self.seed, ngram_tokens)
+        seed = ...
         self.rng.manual_seed(seed)
         rs = torch.rand(self.vocab_size, generator=self.rng) # n
-        scores = -(1 - rs).log()
-        return scores[token_id]
+        scores = -(1 - ...).log()
+        return ...
  
     def get_pvalue(self, score: float, ntoks: int, eps: float):
         """ from cdf of a gamma distribution """
@@ -302,11 +297,7 @@ class OpenaiDetectorZ(WmDetector):
     
     def score_tok(self, ngram_tokens, token_id):
         """ same as OpenaiDetector but using zscore """
-        seed = get_seed_rng(self.seed, ngram_tokens)
-        self.rng.manual_seed(seed)
-        rs = torch.rand(self.vocab_size, generator=self.rng) # n
-        scores = -(1 - rs).log()
-        return scores[token_id]
+        return ...
  
     def get_pvalue(self, score: float, ntoks: int, eps: float):
         """ from cdf of a normal distribution """
