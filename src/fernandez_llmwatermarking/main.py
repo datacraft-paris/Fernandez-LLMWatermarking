@@ -12,6 +12,7 @@ import torch
 import numpy as np
 import pandas as pd
 import argparse
+import shutil
 
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -24,8 +25,9 @@ model_names = {
     'smollm2-135m': 'HuggingFaceTB/SmolLM2-135M-Instruct',
     'smollm2-360m': 'HuggingFaceTB/SmolLM2-360M-Instruct',   
 }
-
-CACHE_DIR = "/Users/datacraft/Fernandez-LLMWatermarking/static/hf_cache"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(SCRIPT_DIR, "../.."))
+CACHE_DIR = os.path.join(ROOT_DIR, 'static', 'hf_cache/')
 
 
 def load_prompts(json_path: str, prompt_type: str = "smollm", nsamples: int = None) -> list[dict]:
@@ -138,7 +140,8 @@ def get_args_parser():
 def main(args):
     print('job dir: {}'.format(os.path.dirname(os.path.realpath(__file__))))
     print("{}".format(args).replace(', ', ',\n'))
-
+    os.remove(os.path.join(args.output_dir, 'results.jsonl'))
+    os.remove(os.path.join(args.output_dir, 'scores.jsonl'))
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
 
